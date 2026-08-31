@@ -1,0 +1,37 @@
+# Dependencies and generated output
+node_modules/
+coverage/
+dist/
+main.js
+*.map
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+
+# Local plugin state
+data.json
+.obsidian/
+
+# Logs and caches
+*.log
+.eslintcache
+.npm/
+
+# Local credentials and environment overrides
+.env
+.env.*
+!.env.example
+.npmrc
+
+# Editors
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+*~
+
+# Operating systems
+.DS_Store
+Thumbs.db

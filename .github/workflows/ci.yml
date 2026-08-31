@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - "22.22.2"
+          - "24"
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Lint, typecheck, test, and build
+        run: npm run check
+
+      - name: Verify a repeatable production bundle
+        shell: bash
+        run: |
+          first_hash="$(sha256sum main.js | cut -d ' ' -f 1)"
+          node esbuild.config.mjs production
+          second_hash="$(sha256sum main.js | cut -d ' ' -f 1)"
+          test "$first_hash" = "$second_hash"
+
+      - name: Assemble runtime files
+        run: npm run release:package

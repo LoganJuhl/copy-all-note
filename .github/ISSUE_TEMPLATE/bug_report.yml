@@ -1,0 +1,73 @@
+name: Bug report
+description: Report a reproducible problem with Copy All Note.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting a problem. Use synthetic note text and remove private paths or clipboard contents.
+
+  - type: input
+    id: plugin-version
+    attributes:
+      label: Copy All Note version
+      placeholder: "0.1.0"
+    validations:
+      required: true
+
+  - type: input
+    id: obsidian-version
+    attributes:
+      label: Obsidian version
+      placeholder: "1.x.x"
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Device and operating system
+      placeholder: "iPhone / iOS, Android, macOS, Windows, or Linux"
+    validations:
+      required: true
+
+  - type: input
+    id: appearance
+    attributes:
+      label: Theme and relevant appearance plugins
+      placeholder: "Default, Minimal, Cupertino, etc."
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Include a minimal synthetic note when note structure matters.
+      placeholder: |
+        1. Open ...
+        2. Enable ...
+        3. Click ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacy check
+      options:
+        - label: I removed private note text, clipboard text, vault paths, account names, and device identifiers.
+          required: true

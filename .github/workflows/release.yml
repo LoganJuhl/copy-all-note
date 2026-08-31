@@ -1,0 +1,84 @@
+name: Draft release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Require the tag to match manifest.json
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module -e '
+            import { readFileSync } from "node:fs";
+            const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
+            if (process.env.RELEASE_TAG !== manifest.version) {
+              console.error(`Tag ${process.env.RELEASE_TAG} does not match manifest ${manifest.version}.`);
+              process.exit(1);
+            }
+          '
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Verify and package the plugin
+        run: npm run release:prepare
+
+      - name: Create convenience ZIP and checksums
+        working-directory: dist
+        run: |
+          zip -r "copy-all-note-${GITHUB_REF_NAME}.zip" copy-all-note
+          sha256sum "copy-all-note-${GITHUB_REF_NAME}.zip" >> SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+          # GitHub exposes raw assets side-by-side rather than inside the ZIP
+          # folder, so publish checksum labels that match downloaded filenames.
+          sha256sum ../main.js ../manifest.json ../styles.css \
+            "copy-all-note-${GITHUB_REF_NAME}.zip" \
+            | sed -E 's#  \.\./#  #' > RELEASE_SHA256SUMS.txt
+          mv RELEASE_SHA256SUMS.txt SHA256SUMS.txt
+
+      - name: Attest release artifacts
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            main.js
+            manifest.json
+            styles.css
+            dist/copy-all-note-${{ github.ref_name }}.zip
+            dist/SHA256SUMS.txt
+
+      - name: Create an unpublished draft release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --draft \
+            --verify-tag \
+            --notes-file ".github/release-notes/${GITHUB_REF_NAME}.md" \
+            main.js \
+            manifest.json \
+            styles.css \
+            "dist/copy-all-note-${GITHUB_REF_NAME}.zip" \
+            dist/SHA256SUMS.txt

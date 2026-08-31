@@ -47,7 +47,7 @@ Copy the generated `dist/copy-all-note/` folder to `<Vault>/.obsidian/plugins/`,
 - Click the copy icon in a Markdown note's native view header.
 - Run **Copy entire note** from the Command Palette.
 - Assign **Copy entire note** under **Settings → Hotkeys**.
-- On mobile, add the command under **Settings → Toolbar → Add global command**.
+- On mobile, go to **Settings → Mobile → Manage toolbar options → Add global command**, then add **Copy entire note**.
 
 The plugin copies Markdown, not rendered HTML or preview text. It uses the current view buffer whenever it is a string—even when that string is empty—so unsaved deletions are never replaced with stale disk content.
 
@@ -69,11 +69,10 @@ Native visibility rules still apply. If a theme hides the whole view header, use
 
 ## Privacy
 
-Copy All Note is local-only:
+Copy All Note does not transmit or persist note text. When you invoke a copy action, it processes the current note locally and copies it to the clipboard. If the modern Clipboard API is unavailable or rejected, the plugin temporarily places the text in an off-screen textarea in the current Obsidian window to invoke the browser's copy operation, then immediately removes it.
 
 - It performs no network requests and includes no telemetry or analytics.
 - It reads note text only after you explicitly invoke the button or command.
-- It writes that text only to the operating system clipboard.
 - It does not read arbitrary clipboard contents or write to notes in your vault.
 - Its saved settings contain only booleans and an icon name.
 

@@ -9,21 +9,22 @@ Copy All Note adds one native, icon-only action to every Obsidian Markdown view 
 
 - Copies the current live Markdown buffer, including unsaved edits and deletions.
 - Works from Editing view, Reading view, the Command Palette, split panes, and pop-out windows.
-- Preserves LF or CRLF line endings when adding a title.
 - Keeps retained YAML frontmatter at the beginning of the copied document.
 - Uses Obsidian's native header-action styling on desktop and mobile.
 - Fails closed if Obsidian cannot provide the live buffer; it never substitutes stale disk content.
 
 ## Requirements
 
-- Obsidian 1.5.0 or newer.
+- Obsidian 1.13.7 or newer. This minimum matches native testing on macOS and a physical iPhone.
 - Desktop or mobile. The plugin does not use Node.js or Electron APIs at runtime.
 
 ## Install
 
+Copy All Note is being prepared for its first public release and Community directory submission. Community installation is not available yet.
+
 ### From a GitHub release
 
-Download `main.js`, `manifest.json`, and `styles.css` from the GitHub release you want to install and place them in:
+Once a [GitHub release](https://github.com/LoganJuhl/copy-all-note/releases) is published, download its `main.js`, `manifest.json`, and `styles.css` and place them in:
 
 ```text
 <Vault>/.obsidian/plugins/copy-all-note/
@@ -47,9 +48,13 @@ Copy the generated `dist/copy-all-note/` folder to `<Vault>/.obsidian/plugins/`,
 - Click the copy icon in a Markdown note's native view header.
 - Run **Copy entire note** from the Command Palette.
 - Assign **Copy entire note** under **Settings → Hotkeys**.
-- On mobile, go to **Settings → Mobile → Manage toolbar options → Add global command**, then add **Copy entire note**.
+- On Obsidian 1.13.7 mobile, go to **Settings → Interface → Configure mobile toolbar → Add a command…**, then choose **Copy All Note: Copy entire note**.
 
 The plugin copies Markdown, not rendered HTML or preview text. It uses the current view buffer whenever it is a string—even when that string is empty—so unsaved deletions are never replaced with stale disk content.
+
+Copying an empty payload requires the modern Clipboard API. If that API is unavailable or rejects the request, the plugin reports a copy failure and leaves the clipboard unchanged; the legacy fallback cannot reliably copy empty text.
+
+Obsidian may normalize on-disk CRLF line endings to LF and remove a leading byte-order mark (BOM) before providing that buffer. Copy All Note works with the text Obsidian supplies; it does not guarantee preservation of the original file bytes. When adding a title, it uses the supplied buffer's line-ending style.
 
 ## Settings
 
@@ -69,7 +74,7 @@ Native visibility rules still apply. If a theme hides the whole view header, use
 
 ## Privacy
 
-Copy All Note does not transmit or persist note text. When you invoke a copy action, it processes the current note locally and copies it to the clipboard. If the modern Clipboard API is unavailable or rejected, the plugin temporarily places the text in an off-screen textarea in the current Obsidian window to invoke the browser's copy operation, then immediately removes it.
+Copy All Note does not transmit or persist note text. When you invoke a copy action, it processes the current note locally and copies it to the clipboard. If the modern Clipboard API is unavailable or rejected, the plugin temporarily places nonempty text in an off-screen textarea in the current Obsidian window to invoke the browser's copy operation, then immediately removes it.
 
 - It performs no network requests and includes no telemetry or analytics.
 - It reads note text only after you explicitly invoke the button or command.
@@ -91,7 +96,7 @@ Before opening a pull request or preparing a release, run:
 npm run check
 ```
 
-`check` runs the Obsidian-oriented ESLint rules, TypeScript, 35 automated tests, a minified production build, and release-metadata validation. The tests cover empty unsaved buffers, CRLF/frontmatter formatting, Reading view commands, split panes, pop-outs, clipboard fallback cleanup, action ownership after reload, debounced settings persistence, and Cupertino ordering.
+`check` runs the Obsidian-oriented ESLint rules, TypeScript, automated tests, a minified production build, and release-metadata validation. The tests cover empty unsaved buffers, CRLF/frontmatter formatting, Reading view commands, split panes, pop-outs, clipboard fallback cleanup, action ownership after reload, debounced settings persistence, and Cupertino ordering.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual test matrix and [docs/RELEASING.md](docs/RELEASING.md) for the draft-release process.
 

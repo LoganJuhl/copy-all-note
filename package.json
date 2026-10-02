@@ -1,6 +1,6 @@
 {
   "name": "copy-all-note",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "An Obsidian plugin that copies the current note's raw Markdown from a native view-header action.",
   "main": "main.js",

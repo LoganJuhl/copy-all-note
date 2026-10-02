@@ -20,11 +20,19 @@ Copy All Note adds one native, icon-only action to every Obsidian Markdown view 
 
 ## Install
 
-Copy All Note is being prepared for its first public release and Community directory submission. Community installation is not available yet.
+Copy All Note is available in [Obsidian Community](https://community.obsidian.md/plugins/copy-all-note). Version 0.1.1 is also available on GitHub for manual installation.
+
+### From Obsidian Community (recommended)
+
+1. In Obsidian, open **Settings → Community plugins** and turn on community plugins if needed.
+2. Select **Browse**, search for **Copy All Note**, and open its listing.
+3. Select **Install**, then **Enable**.
+
+You can also open the [Community listing](https://community.obsidian.md/plugins/copy-all-note) and select **Add to Obsidian** to open the plugin in the app, then install and enable it.
 
 ### From a GitHub release
 
-Once a [GitHub release](https://github.com/LoganJuhl/copy-all-note/releases) is published, download its `main.js`, `manifest.json`, and `styles.css` and place them in:
+For manual installation, download `main.js`, `manifest.json`, and `styles.css` from [GitHub release 0.1.1](https://github.com/LoganJuhl/copy-all-note/releases/tag/0.1.1) and place them in:
 
 ```text
 <Vault>/.obsidian/plugins/copy-all-note/

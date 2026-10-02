@@ -66,6 +66,11 @@ function restoreFocusAndSelection(
 }
 
 function copyWithTextarea(markdown: string, ownerDocument: Document): void {
+  // An empty selection can make execCommand report success without copying.
+  if (markdown.length === 0) {
+    throw new Error("The browser clipboard fallback cannot copy empty text.");
+  }
+
   const HTMLElementConstructor = ownerDocument.defaultView?.HTMLElement;
   const activeElement =
     HTMLElementConstructor &&

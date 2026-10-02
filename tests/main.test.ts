@@ -163,12 +163,15 @@ afterEach(() => {
 });
 
 describe("copy behavior", () => {
-  it("copies a valid empty unsaved buffer without reading stale disk content", async () => {
+  it.each([true, false])("copies an empty buffer through the modern API (notice: %s)", async (showNotice) => {
     const dom = createDom();
     const writeText = vi.fn(async () => undefined);
     setClipboard(dom, writeText);
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(dom.window.document, "execCommand", { value: execCommand });
     const harness = createApp("SAVED SECRET");
     const plugin = createPlugin(harness.app);
+    plugin.settings.showNotice = showNotice;
     const { view } = createView(dom, "");
 
     await copyFromView(plugin, view);
@@ -176,7 +179,9 @@ describe("copy behavior", () => {
     expect(writeText).toHaveBeenCalledWith("");
     expect(harness.cachedRead).not.toHaveBeenCalled();
     expect(harness.read).not.toHaveBeenCalled();
-    expect(notices).toContainEqual({ message: "Copied note", timeout: 2000 });
+    expect(execCommand).not.toHaveBeenCalled();
+    expect(dom.window.document.querySelector("textarea")).toBeNull();
+    expect(notices).toEqual(showNotice ? [{ message: "Copied note", timeout: 2000 }] : []);
   });
 
   it("uses the clicked pop-out view's clipboard instead of the main window", async () => {
@@ -283,29 +288,135 @@ describe("copy behavior", () => {
     ]);
   });
 
-  it("clears the clipboard through the legacy fallback for an empty buffer", async () => {
-    const dom = createDom();
-    let fallbackValue: string | null = null;
-    const execCommand = vi.fn(() => {
-      fallbackValue = (
-        dom.window.document.querySelector("textarea") as HTMLTextAreaElement
-      ).value;
-      return true;
-    });
-    Object.defineProperty(dom.window.document, "execCommand", {
-      configurable: true,
-      value: execCommand,
-    });
-    const harness = createApp("STALE DISK CONTENT");
-    const plugin = createPlugin(harness.app);
-    const { view } = createView(dom, "");
+  describe.each(["absent", "rejected"])("with modern clipboard %s", (modern) => {
+    function configureClipboard(dom: JSDOM): void {
+      if (modern === "rejected") {
+        setClipboard(dom, vi.fn().mockRejectedValue(new Error("denied")));
+      }
+    }
 
-    await copyFromView(plugin, view);
+    it.each([
+      { markdown: "", includeFrontmatter: true, showNotice: true },
+      { markdown: "", includeFrontmatter: true, showNotice: false },
+      { markdown: "---\nkind: synthetic\n---\n", includeFrontmatter: false, showNotice: true },
+    ])("reports failure for an empty final payload ($includeFrontmatter, $showNotice)", async (settings) => {
+      const dom = createDom();
+      configureClipboard(dom);
+      const execCommand = vi.fn(() => true);
+      Object.defineProperty(dom.window.document, "execCommand", {
+        configurable: true,
+        value: execCommand,
+      });
+      const focusTarget = dom.window.document.createElement("input");
+      dom.window.document.body.appendChild(focusTarget);
+      focusTarget.focus();
+      focusTarget.value = "Synthetic input selection";
+      focusTarget.setSelectionRange(2, 5);
+      const createElement = vi.spyOn(dom.window.document, "createElement");
+      const harness = createApp("STALE DISK CONTENT");
+      const plugin = createPlugin(harness.app);
+      plugin.settings.includeFrontmatter = settings.includeFrontmatter;
+      plugin.settings.showNotice = settings.showNotice;
+      const { view } = createView(dom, settings.markdown);
 
-    expect(fallbackValue).toBe("");
-    expect(execCommand).toHaveBeenCalledWith("copy");
-    expect(dom.window.document.querySelector("textarea")).toBeNull();
-    expect(harness.cachedRead).not.toHaveBeenCalled();
+      await copyFromView(plugin, view);
+
+      expect(notices).toEqual([
+        { message: "Could not copy note. Try again or check clipboard access.", timeout: 5000 },
+      ]);
+      expect(execCommand).not.toHaveBeenCalled();
+      expect(createElement.mock.calls.some(([tag]) => tag === "textarea")).toBe(false);
+      expect(dom.window.document.querySelector("textarea")).toBeNull();
+      expect(dom.window.document.activeElement).toBe(focusTarget);
+      expect(focusTarget.selectionStart).toBe(2);
+      expect(focusTarget.selectionEnd).toBe(5);
+      expect(harness.cachedRead).not.toHaveBeenCalled();
+      expect(harness.read).not.toHaveBeenCalled();
+    });
+
+    it.each(["success", "false", "throw", "absent"])("cleans up nonempty fallback after %s", async (outcome) => {
+      const dom = createDom();
+      configureClipboard(dom);
+      const focusTarget = dom.window.document.createElement("button");
+      focusTarget.textContent = "Synthetic selection";
+      dom.window.document.body.appendChild(focusTarget);
+      focusTarget.focus();
+      const selection = dom.window.document.getSelection();
+      const range = dom.window.document.createRange();
+      range.selectNodeContents(focusTarget);
+      selection?.removeAllRanges();
+      selection?.addRange(range);
+      expect(selection?.toString()).toBe("Synthetic selection");
+      if (!selection) throw new Error("The test document must have a selection.");
+      const restoreRange = vi.spyOn(selection, "addRange");
+      const captured: Array<{ value?: string; start?: number; end?: number }> = [];
+      const execCommand = vi.fn(() => {
+        const textarea = dom.window.document.querySelector("textarea");
+        captured.push({
+          value: textarea?.value,
+          start: textarea?.selectionStart,
+          end: textarea?.selectionEnd,
+        });
+        selection?.removeAllRanges();
+        if (outcome === "throw") throw new Error("fallback denied");
+        return outcome === "success";
+      });
+      if (outcome !== "absent") {
+        Object.defineProperty(dom.window.document, "execCommand", {
+          configurable: true,
+          value: execCommand,
+        });
+      }
+      const harness = createApp();
+      const plugin = createPlugin(harness.app);
+      const { view } = createView(dom, "Fallback text");
+
+      await copyFromView(plugin, view);
+
+      expect(execCommand).toHaveBeenCalledTimes(outcome === "absent" ? 0 : 1);
+      expect(captured).toEqual(outcome === "absent" ? [] : [
+        { value: "Fallback text", start: 0, end: "Fallback text".length },
+      ]);
+      expect(notices).toEqual(outcome === "success"
+        ? [{ message: "Copied note", timeout: 2000 }]
+        : [{ message: "Could not copy note. Try again or check clipboard access.", timeout: 5000 }]);
+      expect(dom.window.document.querySelector("textarea")).toBeNull();
+      expect(dom.window.document.activeElement).toBe(focusTarget);
+      // JSDOM collapses selection on focus; this checks the restoration attempt.
+      expect(restoreRange).toHaveBeenCalledTimes(1);
+      expect(restoreRange.mock.calls[0]?.[0].toString()).toBe("Synthetic selection");
+      expect(harness.cachedRead).not.toHaveBeenCalled();
+      expect(harness.read).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { markdown: "", prependTitle: true, expected: "# Note\n\n" },
+      { markdown: " \n", prependTitle: false, expected: " \n" },
+    ])("keeps nonempty final payloads eligible for quiet fallback ($prependTitle)", async ({ markdown, prependTitle, expected }) => {
+      const dom = createDom();
+      configureClipboard(dom);
+      let captured: string | undefined;
+      const execCommand = vi.fn(() => {
+        captured = dom.window.document.querySelector("textarea")?.value;
+        return true;
+      });
+      Object.defineProperty(dom.window.document, "execCommand", {
+        configurable: true,
+        value: execCommand,
+      });
+      const harness = createApp();
+      const plugin = createPlugin(harness.app);
+      plugin.settings.prependTitle = prependTitle;
+      plugin.settings.showNotice = false;
+      const { view } = createView(dom, markdown);
+
+      await copyFromView(plugin, view);
+
+      expect(execCommand).toHaveBeenCalledExactlyOnceWith("copy");
+      expect(captured).toBe(expected);
+      expect(notices).toEqual([]);
+      expect(dom.window.document.querySelector("textarea")).toBeNull();
+    });
   });
 
   it("keeps the legacy clipboard fallback inside the pop-out document", async () => {

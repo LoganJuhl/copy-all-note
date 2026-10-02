@@ -51,7 +51,8 @@ export default defineConfig(
   {
     files: ["src/main.ts"],
     rules: {
-      // The manifest supports Obsidian 1.5; declarative settings require 1.13.
+      // Keep the native-tested settings implementation for this release.
+      // Declarative settings are opt-in; migration requires separate runtime testing.
       "obsidianmd/settings-tab/prefer-setting-definitions": "off",
     },
   },

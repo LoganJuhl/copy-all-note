@@ -32,17 +32,21 @@ npm ci
 npm run check
 ```
 
-Then manually verify the behavior your change touches. For release-level changes, check:
+Then manually verify the behavior your change touches. For runtime changes, use this matrix and record the Obsidian version, platform, and actual results:
 
 - Empty unsaved note.
 - Editing and Reading views.
 - Frontmatter retained and stripped, with title off and on.
-- LF, CRLF, and BOM-prefixed notes.
+- LF, CRLF, and BOM-prefixed input. Distinguish payload-unit-test results from native behavior: Obsidian may normalize line endings and strip a BOM before supplying the live buffer.
 - Split panes that contain different notes.
 - A pop-out window with its own clipboard context.
 - Two plugin reloads with a note already open; one working action must remain.
 - Mobile header and toolbar command.
 - Cupertino ordering on a phone when available.
+
+For a metadata or documentation release, compare the generated `main.js` and `styles.css` byte-for-byte with the exact previously tested release assets. If both match, carry forward the recorded native results and limitations, then run a focused clean-vault smoke test: plugin loading, header copy, command copy, and exact Markdown clipboard output. Investigate any unexpected runtime difference before relying on earlier tests.
+
+Record an inconclusive interaction as inconclusive, including whether built-in controls behave similarly. Do not count it as a pass or infer coverage for an untested device. Set `minAppVersion` from native compatibility evidence, not API types or mocks alone.
 
 ## Pull-request guidance
 

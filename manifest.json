@@ -1,8 +1,8 @@
 {
   "id": "copy-all-note",
   "name": "Copy All Note",
-  "version": "0.1.0",
-  "minAppVersion": "1.5.0",
+  "version": "0.1.1",
+  "minAppVersion": "1.13.7",
   "description": "Adds a native header button that copies the entire note's Markdown to the clipboard.",
   "author": "Logan McKinley Juhl",
   "authorUrl": "https://github.com/LoganJuhl",

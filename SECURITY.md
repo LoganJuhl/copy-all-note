@@ -1,21 +1,19 @@
-# Security policy
+# Security
 
-## Supported versions
+Security fixes go out on the latest release.
 
-Security fixes are provided for the latest released version of Copy All Note.
+Report a vulnerability through [GitHub private reporting](https://github.com/LoganJuhl/copy-all-note/security/advisories/new). Don't open a public issue with vulnerability details, note text, clipboard contents, or private vault information.
 
-## Report a vulnerability privately
+Use a synthetic note in the report. Remove vault names, local paths, account names, and device identifiers. Include the plugin version, Obsidian version, operating system, and reproduction steps.
 
-Please use [GitHub private vulnerability reporting](https://github.com/LoganJuhl/copy-all-note/security/advisories/new). Do not open a public issue for a vulnerability that could expose note text, clipboard data, or another user's vault.
+If private reporting is unavailable, open an issue asking only for a private contact channel. Leave the details out.
 
-Before submitting diagnostics:
+## What the plugin does
 
-- Replace note and clipboard contents with synthetic examples.
-- Remove vault names, local paths, account names, and device identifiers.
-- Include the Copy All Note version, Obsidian version, operating system, and minimal reproduction steps.
+No network requests or telemetry. Note text is read only after you click the button or run the command, then copied locally.
 
-If private reporting is not yet enabled, open a public issue containing only a request for a private contact channel—do not include vulnerability details.
+It tries `navigator.clipboard.writeText` first. If that API is missing or rejects the request, nonempty text goes through an off-screen textarea in the current window and `execCommand("copy")`. The textarea is removed, and focus and selection are restored where possible. Empty text does not use that fallback.
 
-## Security model
+The plugin does not save note text, read the clipboard, or modify note files. It saves only its settings.
 
-Copy All Note performs no network requests or telemetry. It accesses a note's live Markdown only after an explicit copy action and processes the text locally to copy it to the clipboard. It first uses the modern Clipboard API; if that API is unavailable or rejected, the plugin temporarily places the text in an off-screen textarea in the current Obsidian window, invokes the browser's copy operation, then immediately removes the textarea and restores focus and selection. It does not persist note text, read clipboard contents, mutate vault files, or fall back to saved disk content.
+An unavailable malware scan in the Community scorecard means there is no scan result. It is neither a malware finding nor a clean verdict.

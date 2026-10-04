@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest a focused improvement to Copy All Note.
+description: Suggest a focused change to Copy All Note.
 title: "[Feature]: "
 labels:
   - enhancement
@@ -7,27 +7,27 @@ body:
   - type: textarea
     id: problem
     attributes:
-      label: Problem or use case
-      description: Explain what is difficult today without including private note content.
+      label: What is awkward today
+      description: Explain the problem without private note text or vault details.
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed behavior
+      label: What you want it to do
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
+      label: What you already tried
 
   - type: checkboxes
     id: scope
     attributes:
-      label: Scope check
+      label: Scope
       options:
-        - label: This request is about copying the current note and does not require unrelated vault automation.
+        - label: This is about copying the current note, not vault-wide automation.
           required: true

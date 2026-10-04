@@ -3,114 +3,71 @@
 [![CI](https://github.com/LoganJuhl/copy-all-note/actions/workflows/ci.yml/badge.svg)](https://github.com/LoganJuhl/copy-all-note/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Copy All Note adds one native, icon-only action to every Obsidian Markdown view header. It copies the current note's raw Markdown—including a valid empty unsaved buffer—for quick pasting into agents, terminals, prompts, and other apps. It also registers **Copy entire note** as a command.
-
-## Features
-
-- Copies the current live Markdown buffer, including unsaved edits and deletions.
-- Works from Editing view, Reading view, the Command Palette, split panes, and pop-out windows.
-- Keeps retained YAML frontmatter at the beginning of the copied document.
-- Uses Obsidian's native header-action styling on desktop and mobile.
-- Fails closed if Obsidian cannot provide the live buffer; it never substitutes stale disk content.
-
-## Requirements
-
-- Obsidian 1.13.7 or newer. This minimum matches native testing on macOS and a physical iPhone.
-- Desktop or mobile. The plugin does not use Node.js or Electron APIs at runtime.
+A header button that copies the open note as Markdown, ready to paste into a chat, prompt, terminal, or another app. It uses Obsidian's live buffer, including unsaved edits, and also adds the command **Copy entire note**.
 
 ## Install
 
-Copy All Note is available in [Obsidian Community](https://community.obsidian.md/plugins/copy-all-note). Version 0.1.1 is also available on GitHub for manual installation.
+Requires Obsidian **1.13.7** or newer on desktop or mobile. Tested on macOS and a physical iPhone. Installing the plugin does not require Node.js.
 
-### From Obsidian Community (recommended)
+In Obsidian, open **Settings → Community plugins** and turn on community plugins if needed. Select **Browse**, search **Copy All Note**, then **Install** and **Enable**. You can also select **Add to Obsidian** from the [Community listing](https://community.obsidian.md/plugins/copy-all-note).
 
-1. In Obsidian, open **Settings → Community plugins** and turn on community plugins if needed.
-2. Select **Browse**, search for **Copy All Note**, and open its listing.
-3. Select **Install**, then **Enable**.
-
-You can also open the [Community listing](https://community.obsidian.md/plugins/copy-all-note) and select **Add to Obsidian** to open the plugin in the app, then install and enable it.
-
-### From a GitHub release
-
-For manual installation, download `main.js`, `manifest.json`, and `styles.css` from [GitHub release 0.1.1](https://github.com/LoganJuhl/copy-all-note/releases/tag/0.1.1) and place them in:
+For manual installation, download `main.js`, `manifest.json`, and `styles.css` from [release 0.1.1](https://github.com/LoganJuhl/copy-all-note/releases/tag/0.1.1) into:
 
 ```text
 <Vault>/.obsidian/plugins/copy-all-note/
 ```
 
-Alternatively, extract the release ZIP so those three files end up in the same `copy-all-note` folder. Then reload Obsidian, open **Settings → Community plugins**, and enable **Copy All Note**.
+The release ZIP contains a `copy-all-note/` folder with those three files. Place that folder under `<Vault>/.obsidian/plugins/`, reload Obsidian, then enable **Copy All Note** under **Settings → Community plugins**.
 
-### Build the current source
+## Use
 
-Node.js 22.22.2 or newer is required for the development toolchain.
-
-```bash
-npm ci
-npm run release:prepare
-```
-
-Copy the generated `dist/copy-all-note/` folder to `<Vault>/.obsidian/plugins/`, reload Obsidian, and enable the plugin.
-
-## Usage
-
-- Click the copy icon in a Markdown note's native view header.
+- Click the copy icon in the note header, in Editing or Reading view.
 - Run **Copy entire note** from the Command Palette.
-- Assign **Copy entire note** under **Settings → Hotkeys**.
-- On Obsidian 1.13.7 mobile, go to **Settings → Interface → Configure mobile toolbar → Add a command…**, then choose **Copy All Note: Copy entire note**.
+- Assign the command under **Settings → Hotkeys**.
+- On Obsidian 1.13.7 mobile, open **Settings → Interface → Configure mobile toolbar → Add a command…**, then choose **Copy All Note: Copy entire note**.
 
-The plugin copies Markdown, not rendered HTML or preview text. It uses the current view buffer whenever it is a string—even when that string is empty—so unsaved deletions are never replaced with stale disk content.
+In split panes and pop-out windows, the header button copies the note in that view; the command copies the active note.
 
-Copying an empty payload requires the modern Clipboard API. If that API is unavailable or rejects the request, the plugin reports a copy failure and leaves the clipboard unchanged; the legacy fallback cannot reliably copy empty text.
+The output is Markdown. Obsidian may already have converted CRLF line endings to LF or removed a leading byte-order mark (BOM) before supplying the buffer. The plugin does not read the file from disk.
 
-Obsidian may normalize on-disk CRLF line endings to LF and remove a leading byte-order mark (BOM) before providing that buffer. Copy All Note works with the text Obsidian supplies; it does not guarantee preservation of the original file bytes. When adding a title, it uses the supplied buffer's line-ending style.
+An empty output copies only if the Clipboard API accepts it. If that API is missing or rejects the request, the plugin reports a failure and leaves the clipboard unchanged. If Obsidian asks for clipboard access when you copy, that prompt is expected.
 
 ## Settings
 
-- **Include frontmatter** (default: on): keep leading YAML frontmatter.
-- **Prepend title** (default: off): add the note basename as an H1.
-- **Show success notice** (default: on): show `Copied note` after success.
-- **Show header button** (default: on): show or hide header actions; the command remains available.
-- **Icon** (default: `copy`): use a non-empty Lucide icon name. Invalid names fall back to a clipboard icon.
+Open **Settings → Copy All Note**. In 0.1.1, these controls are not indexed by Obsidian's settings search.
 
-When **Prepend title** and **Include frontmatter** are both enabled, the YAML block remains at the start of the copied Markdown and the H1 is inserted after its closing delimiter. The copied frontmatter therefore remains valid when pasted as a new note.
+- **Include frontmatter** (on): keep a leading YAML block.
+- **Prepend title** (off): add the note's filename without its extension as an H1. If frontmatter is kept, the H1 goes after the closing `---` so the YAML stays valid.
+- **Show success notice** (on): show `Copied note` after a successful copy.
+- **Show header button** (on): turn off to hide the icon; the command remains available.
+- **Icon** (`copy`): use a nonempty Lucide icon name. Unknown names fall back to `copy`, then `clipboard-copy`, then `clipboard`.
 
-## Theme compatibility
+## Themes
 
-The action uses Obsidian's native `.clickable-icon.view-action` header slot and inherits the active theme's size, spacing, hover treatment, and mobile touch target. It does not add a document toolbar or modify the editor, inline title, Properties, or note body.
+The button uses Obsidian's `.clickable-icon.view-action` styling and inherits the theme's size and hover treatment. It does not change the editor, inline title, or Properties.
 
-Native visibility rules still apply. If a theme hides the whole view header, use the command, a hotkey, or the mobile toolbar. For Cupertino, the plugin places its own action at the beginning of the native action row so the theme's positional mode-switcher rules remain stable.
+If a theme hides the view header, use the command, a hotkey, or the mobile toolbar. On Cupertino, the button goes at the start of the action row to preserve the theme's mode-switcher position.
 
 ## Privacy
 
-Copy All Note does not transmit or persist note text. When you invoke a copy action, it processes the current note locally and copies it to the clipboard. If the modern Clipboard API is unavailable or rejected, the plugin temporarily places nonempty text in an off-screen textarea in the current Obsidian window to invoke the browser's copy operation, then immediately removes it.
+No network requests, telemetry, or clipboard reads. Note text is read only when you copy and is not saved by the plugin. Saved settings contain only booleans and an icon name; the plugin does not modify note files.
 
-- It performs no network requests and includes no telemetry or analytics.
-- It reads note text only after you explicitly invoke the button or command.
-- It does not read arbitrary clipboard contents or write to notes in your vault.
-- Its saved settings contain only booleans and an icon name.
+If the Clipboard API is missing or rejects the request, nonempty text is copied through a temporary off-screen textarea in that window, then removed. Focus and selection are restored where possible.
 
-Clipboard contents and note text can be sensitive. Redact both before attaching diagnostics to a public issue. See [SECURITY.md](SECURITY.md) for private vulnerability reporting.
+Use synthetic note text in [GitHub Issues](https://github.com/LoganJuhl/copy-all-note/issues). For vulnerability reports, see [SECURITY.md](SECURITY.md).
 
 ## Development
+
+Node.js 22.22.2 or newer is required for development.
 
 ```bash
 npm ci
 npm run dev
 ```
 
-Before opening a pull request or preparing a release, run:
+`npm run check` lints, typechecks, tests, builds, and checks release metadata. To build an installable folder, run `npm run release:prepare` and copy `dist/copy-all-note/` into `<Vault>/.obsidian/plugins/`.
 
-```bash
-npm run check
-```
-
-`check` runs the Obsidian-oriented ESLint rules, TypeScript, automated tests, a minified production build, and release-metadata validation. The tests cover empty unsaved buffers, CRLF/frontmatter formatting, Reading view commands, split panes, pop-outs, clipboard fallback cleanup, action ownership after reload, debounced settings persistence, and Cupertino ordering.
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual test matrix and [docs/RELEASING.md](docs/RELEASING.md) for the draft-release process.
-
-## Support
-
-Use [GitHub Issues](https://github.com/LoganJuhl/copy-all-note/issues) for reproducible bugs and focused feature requests. Do not include private note or clipboard contents.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the manual test matrix and [docs/RELEASING.md](docs/RELEASING.md) for release steps.
 
 ## License
 

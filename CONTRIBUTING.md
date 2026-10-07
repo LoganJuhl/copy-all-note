@@ -1,10 +1,10 @@
 # Contributing
 
-Thanks for helping improve Copy All Note. Keep changes focused, privacy-preserving, and compatible with Obsidian on desktop and mobile.
+Keep changes focused on copying the current note. Small changes are easier to review and maintain.
 
-## Development setup
+## Setup
 
-You need Node.js 22.22.2 or newer and npm.
+Node.js 22.22.2 or newer and npm.
 
 ```bash
 git clone https://github.com/LoganJuhl/copy-all-note.git
@@ -13,46 +13,37 @@ npm ci
 npm run check
 ```
 
-Use a throwaway Obsidian vault for manual development. Never commit a vault, `.obsidian` configuration, `data.json`, note content, clipboard content, credentials, or diagnostic logs containing private data.
-
-Run the development watcher with:
+Use a throwaway vault. Don't commit a vault, `.obsidian`, `data.json`, credentials, note text, clipboard text, or private logs.
 
 ```bash
 npm run dev
 ```
 
-The generated `main.js`, `dist/`, dependencies, local settings, logs, and archives are intentionally ignored. Releases build their runtime files from reviewed source and the committed lockfile.
+`main.js` and `dist/` are generated. Releases build them from source and the committed lockfile.
 
 ## Before a pull request
 
-Run:
+Run `npm ci` and `npm run check`. Explain what changes for the user and why.
 
-```bash
-npm ci
-npm run check
-```
-
-Then manually verify the behavior your change touches. For runtime changes, use this matrix and record the Obsidian version, platform, and actual results:
+For a behavior change, try the affected parts in Obsidian and record the app version, platform, and results:
 
 - Empty unsaved note.
 - Editing and Reading views.
-- Frontmatter retained and stripped, with title off and on.
-- LF, CRLF, and BOM-prefixed input. Distinguish payload-unit-test results from native behavior: Obsidian may normalize line endings and strip a BOM before supplying the live buffer.
-- Split panes that contain different notes.
+- Frontmatter kept and stripped, with title off and on.
+- A note that started with LF, CRLF, or a BOM. Unit tests see the string passed in; Obsidian may already have normalized the live buffer.
+- Two panes with different notes.
 - A pop-out window with its own clipboard context.
-- Two plugin reloads with a note already open; one working action must remain.
-- Mobile header and toolbar command.
-- Cupertino ordering on a phone when available.
+- Reload the plugin twice with a note open. One working button should remain.
+- Phone header and toolbar command, when a device is available.
+- Cupertino ordering on a phone, when available.
 
-For a metadata or documentation release, compare the generated `main.js` and `styles.css` byte-for-byte with the exact previously tested release assets. If both match, carry forward the recorded native results and limitations, then run a focused clean-vault smoke test: plugin loading, header copy, command copy, and exact Markdown clipboard output. Investigate any unexpected runtime difference before relying on earlier tests.
+For a metadata or documentation release, compare the generated `main.js` and `styles.css` byte-for-byte with the release already tested. If they match, record that release and any remaining limitations, then smoke-test loading, header copy, command copy, and the exact clipboard text. Investigate unexpected differences before relying on earlier results.
 
-Record an inconclusive interaction as inconclusive, including whether built-in controls behave similarly. Do not count it as a pass or infer coverage for an untested device. Set `minAppVersion` from native compatibility evidence, not API types or mocks alone.
+Record an inconclusive interaction as inconclusive. Don't count an untested device as a pass. Set `minAppVersion` from a version actually tested in Obsidian.
 
-## Pull-request guidance
+## What to keep
 
-- Explain the user-visible outcome and why it is needed.
-- Add or update tests for changed behavior.
-- Keep the live buffer as the sole source of note text; do not restore disk fallback.
-- Do not add telemetry, network access, clipboard reads, vault mutation, Node.js, or Electron APIs without prior discussion.
-- Update documentation and `CHANGELOG.md` when behavior changes.
-- Keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` aligned for releases.
+- The open buffer is the only source of note text. Don't add a disk fallback.
+- Discuss network access, telemetry, clipboard reads, note-file writes, Node.js, or Electron APIs before adding them.
+- Add tests for behavior changes. Update docs and the changelog when a user would notice.
+- For releases, keep `package.json`, `package-lock.json`, `manifest.json`, and `versions.json` aligned.

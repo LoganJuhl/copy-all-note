@@ -33,6 +33,30 @@ describe("stripLeadingFrontmatter", () => {
 });
 
 describe("buildPayload", () => {
+  it.each([
+    ["line separator", "\u2028"],
+    ["paragraph separator", "\u2029"],
+  ])("treats a Unicode %s inside a quoted YAML value as content", (_, separator) => {
+    const fields = 'quote: "before' + separator + "---" + separator + 'after"\nprivate: synthetic\n';
+    const block = "---\n" + fields + "---\n";
+    const body = "[[Body]]\n";
+
+    expect(buildPayload(block + body, "Note", settings({ includeFrontmatter: false }))).toBe(body);
+    expect(buildPayload(block + body, "Note", settings({ prependTitle: true })))
+      .toBe(block + "# Note\n\n" + body);
+    expect(stripLeadingFrontmatter("---\n" + fields)).toBe("---\n" + fields);
+  });
+
+  it("strips or keeps CR-only frontmatter and preserves the body's line endings", () => {
+    const header = "\uFEFF--- \rprivate: synthetic\r---\r";
+    const body = "Body  \rNext\r";
+
+    expect(buildPayload(header + body, "Note", settings({ includeFrontmatter: false }))).toBe(body);
+    expect(buildPayload(header + body, "Note", settings({ prependTitle: true })))
+      .toBe(header + "# Note\r\r" + body);
+    expect(buildPayload(header + body, "Note", settings())).toBe(header + body);
+  });
+
   it("places an LF title below retained frontmatter", () => {
     const markdown = "---\ntags: [one]\n---\nBody\n";
 

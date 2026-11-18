@@ -7,16 +7,17 @@ export interface CopyAllNoteSettings {
 }
 
 function leadingFrontmatterEnd(markdown: string): number | null {
-  const opening = markdown.match(/^\uFEFF?---[ \t]*(?:\r\n|\n)/);
+  const opening = /^\uFEFF?---[ \t]*(?:\r\n?|\n)/.exec(markdown);
 
   if (!opening) {
     return null;
   }
 
   const remainder = markdown.slice(opening[0].length);
-  const closing = remainder.match(/^---[ \t]*(?:(?:\r\n|\n)|$)/m);
+  // YAML permits U+2028 and U+2029 inside values. Delimiters use physical lines.
+  const closing = /(?:^|\r\n?|\n)---[ \t]*(?:\r\n?|\n|$)/.exec(remainder);
 
-  if (!closing || closing.index === undefined) {
+  if (!closing) {
     return null;
   }
 
@@ -34,15 +35,21 @@ export function buildPayload(
   basename: string,
   settings: CopyAllNoteSettings,
 ): string {
-  const eol = markdown.includes("\r\n") ? "\r\n" : "\n";
+  if (!settings.prependTitle) {
+    return settings.includeFrontmatter ? markdown : stripLeadingFrontmatter(markdown);
+  }
+
   const frontmatterEnd = leadingFrontmatterEnd(markdown);
   const body =
     settings.includeFrontmatter || frontmatterEnd === null
       ? markdown
       : markdown.slice(frontmatterEnd);
 
-  if (!settings.prependTitle) {
-    return body;
+  let eol = "\n";
+  if (markdown.includes("\r\n")) {
+    eol = "\r\n";
+  } else if (markdown.includes("\r") && !markdown.includes("\n")) {
+    eol = "\r";
   }
 
   const heading = `# ${basename}${eol}${eol}`;
@@ -53,7 +60,7 @@ export function buildPayload(
   }
 
   const frontmatter = markdown.slice(0, frontmatterEnd);
-  const separator = frontmatter.endsWith("\n") ? "" : eol;
+  const separator = /[\r\n]$/.test(frontmatter) ? "" : eol;
   return `${frontmatter}${separator}${heading}${markdown.slice(frontmatterEnd)}`;
 }
 

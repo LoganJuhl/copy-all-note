@@ -38,20 +38,7 @@ const ACTION_CLASS = "copy-all-note-action";
 const ACTION_SELECTOR = `.view-actions > .${ACTION_CLASS}`;
 const ACTION_TOOLTIP = "Copy entire note";
 
-function restoreFocusAndSelection(
-  activeElement: HTMLElement | null,
-  selection: Selection | null,
-  range: Range | null,
-): void {
-  if (selection && range) {
-    try {
-      selection.removeAllRanges();
-      selection.addRange(range);
-    } catch {
-      // The previous selection can disappear while a mobile view is changing.
-    }
-  }
-
+function restoreFocus(activeElement: HTMLElement | null): void {
   if (activeElement) {
     try {
       activeElement.focus({ preventScroll: true });
@@ -78,10 +65,14 @@ function copyWithTextarea(markdown: string, ownerDocument: Document): void {
       ? ownerDocument.activeElement
       : null;
   const selection = ownerDocument.getSelection();
-  const range =
-    selection && selection.rangeCount > 0
-      ? selection.getRangeAt(0).cloneRange()
-      : null;
+  const previousSelection = selection?.anchorNode && selection.focusNode
+    ? {
+        anchor: selection.anchorNode,
+        anchorOffset: selection.anchorOffset,
+        focus: selection.focusNode,
+        focusOffset: selection.focusOffset,
+      }
+    : null;
   const textarea = ownerDocument.body.createEl("textarea", {
     cls: "copy-all-note-clipboard-buffer",
     attr: {
@@ -105,13 +96,27 @@ function copyWithTextarea(markdown: string, ownerDocument: Document): void {
     }
   } finally {
     textarea.remove();
-    restoreFocusAndSelection(activeElement, selection, range);
+    restoreFocus(activeElement);
+    if (selection && previousSelection) {
+      try {
+        // Focusing can collapse the selection. Restore both ends afterwards.
+        selection.setBaseAndExtent(
+          previousSelection.anchor,
+          previousSelection.anchorOffset,
+          previousSelection.focus,
+          previousSelection.focusOffset,
+        );
+      } catch {
+        // The selected nodes can disappear while a mobile view is changing.
+      }
+    }
   }
 }
 
 async function writeClipboard(
   markdown: string,
   ownerDocument: Document,
+  isCurrent: () => boolean,
 ): Promise<void> {
   let clipboardError: unknown;
   const viewNavigator = ownerDocument.defaultView?.navigator;
@@ -124,6 +129,9 @@ async function writeClipboard(
   } catch (error) {
     clipboardError = error;
   }
+
+  // WebKit rejects an outstanding write when a newer copy starts.
+  if (!isCurrent()) return;
 
   try {
     copyWithTextarea(markdown, ownerDocument);
@@ -146,6 +154,7 @@ export default class CopyAllNotePlugin extends Plugin {
   private copyCommand: Command | null = null;
   private headerRefreshQueued = false;
   private unloading = false;
+  private latestCopy = 0;
 
   async onload(): Promise<void> {
     await this.loadSettings();
@@ -391,6 +400,10 @@ export default class CopyAllNotePlugin extends Plugin {
   }
 
   private async copyFromView(view: MarkdownView): Promise<void> {
+    if (this.unloading) return;
+    const request = ++this.latestCopy;
+    const isCurrent = () => request === this.latestCopy && !this.unloading;
+
     try {
       const file = view.file;
 
@@ -407,7 +420,6 @@ export default class CopyAllNotePlugin extends Plugin {
           "Copy All Note: current view data was unavailable.",
           error,
         );
-        throw new Error("Current note content is unavailable.");
       }
 
       if (typeof markdown !== "string") {
@@ -419,12 +431,13 @@ export default class CopyAllNotePlugin extends Plugin {
       }
 
       const payload = buildPayload(markdown, file.basename, this.settings);
-      await writeClipboard(payload, view.containerEl.ownerDocument);
+      await writeClipboard(payload, view.containerEl.ownerDocument, isCurrent);
 
-      if (this.settings.showNotice) {
+      if (isCurrent() && this.settings.showNotice) {
         new Notice("Copied note", 2000);
       }
     } catch (error) {
+      if (!isCurrent()) return;
       console.error("Copy All Note: failed to copy the note.", error);
       new Notice(
         "Could not copy note. Try again or check clipboard access.",

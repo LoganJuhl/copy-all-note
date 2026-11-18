@@ -184,6 +184,61 @@ describe("copy behavior", () => {
     expect(notices).toEqual(showNotice ? [{ message: "Copied note", timeout: 2000 }] : []);
   });
 
+  it("keeps the second pane's copy when an earlier clipboard write rejects late", async () => {
+    const dom = createDom();
+    const harness = createApp();
+    const plugin = createPlugin(harness.app);
+    const first = createView(dom, "First pane");
+    const second = createView(dom, "Second pane");
+    harness.leaves.push(first.view, second.view);
+    plugin.refreshHeaderActions();
+
+    let rejectFirst!: (reason: Error) => void;
+    let clipboardText = "";
+    const writeText = vi.fn(async (text: string) => { clipboardText = text; })
+      .mockImplementationOnce(() => new Promise<void>((_, reject) => { rejectFirst = reject; }));
+    setClipboard(dom, writeText);
+    const execCommand = vi.fn(() => {
+      clipboardText = dom.window.document.querySelector("textarea")!.value;
+      return true;
+    });
+    Object.defineProperty(dom.window.document, "execCommand", { value: execCommand });
+
+    const pending = copyFromView(plugin, first.view);
+    second.actions.querySelector("button")!.click();
+    await vi.waitFor(() => expect(notices).toHaveLength(1));
+    rejectFirst(new Error("Superseded clipboard write"));
+    await pending;
+
+    expect(writeText.mock.calls).toEqual([["First pane"], ["Second pane"]]);
+    expect(clipboardText).toBe("Second pane");
+    expect(execCommand).not.toHaveBeenCalled();
+    expect(notices).toEqual([{ message: "Copied note", timeout: 2000 }]);
+  });
+
+  it.each(["resolve", "reject"])("ignores a pending clipboard %s after unload", async (outcome) => {
+    const dom = createDom();
+    const plugin = createPlugin(createApp().app);
+    const { view } = createView(dom, "Pending copy");
+    let resolveWrite!: () => void;
+    let rejectWrite!: (reason: Error) => void;
+    setClipboard(dom, vi.fn(() => new Promise<void>((resolve, reject) => {
+      resolveWrite = resolve;
+      rejectWrite = reject;
+    })));
+    const execCommand = vi.fn(() => true);
+    Object.defineProperty(dom.window.document, "execCommand", { value: execCommand });
+
+    const pending = copyFromView(plugin, view);
+    plugin.onunload();
+    if (outcome === "reject") rejectWrite(new Error("Clipboard unavailable"));
+    else resolveWrite();
+    await pending;
+
+    expect(execCommand).not.toHaveBeenCalled();
+    expect(notices).toEqual([]);
+  });
+
   it("uses the clicked pop-out view's clipboard instead of the main window", async () => {
     const mainDom = createDom();
     const popoutDom = createDom();
@@ -250,7 +305,7 @@ describe("copy behavior", () => {
     expect(harness.read).not.toHaveBeenCalled();
     expect(notices).toEqual([
       {
-        message: "Could not copy note. Try again or check clipboard access.",
+        message: "Could not copy note because its live content is unavailable.",
         timeout: 5000,
       },
     ]);
@@ -338,17 +393,12 @@ describe("copy behavior", () => {
       const dom = createDom();
       configureClipboard(dom);
       const focusTarget = dom.window.document.createElement("button");
-      focusTarget.textContent = "Synthetic selection";
+      const text = focusTarget.appendChild(dom.window.document.createTextNode("Synthetic selection"));
       dom.window.document.body.appendChild(focusTarget);
       focusTarget.focus();
       const selection = dom.window.document.getSelection();
-      const range = dom.window.document.createRange();
-      range.selectNodeContents(focusTarget);
-      selection?.removeAllRanges();
-      selection?.addRange(range);
-      expect(selection?.toString()).toBe("Synthetic selection");
       if (!selection) throw new Error("The test document must have a selection.");
-      const restoreRange = vi.spyOn(selection, "addRange");
+      selection.setBaseAndExtent(text, text.length, text, 0);
       const captured: Array<{ value?: string; start?: number; end?: number }> = [];
       const execCommand = vi.fn(() => {
         const textarea = dom.window.document.querySelector("textarea");
@@ -382,9 +432,9 @@ describe("copy behavior", () => {
         : [{ message: "Could not copy note. Try again or check clipboard access.", timeout: 5000 }]);
       expect(dom.window.document.querySelector("textarea")).toBeNull();
       expect(dom.window.document.activeElement).toBe(focusTarget);
-      // JSDOM collapses selection on focus; this checks the restoration attempt.
-      expect(restoreRange).toHaveBeenCalledTimes(1);
-      expect(restoreRange.mock.calls[0]?.[0].toString()).toBe("Synthetic selection");
+      expect(selection.toString()).toBe("Synthetic selection");
+      expect([selection.anchorNode, selection.anchorOffset]).toEqual([text, text.length]);
+      expect([selection.focusNode, selection.focusOffset]).toEqual([text, 0]);
       expect(harness.cachedRead).not.toHaveBeenCalled();
       expect(harness.read).not.toHaveBeenCalled();
     });

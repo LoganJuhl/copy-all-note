@@ -52,7 +52,7 @@ If a theme hides the view header, use the command, a hotkey, or the mobile toolb
 
 No network requests, telemetry, or clipboard reads. Note text is read only when you copy and is not saved by the plugin. Saved settings contain only booleans and an icon name; the plugin does not modify note files.
 
-If the Clipboard API is missing or rejects the request, nonempty text is copied through a temporary off-screen textarea in that window, then removed. Focus and selection are restored where possible.
+If the Clipboard API is missing or rejects the request, nonempty text is copied through a temporary off-screen textarea in that window, then removed. Focus and selection are restored where possible. A pending fallback runs only while its copy is the most recent one and the plugin is enabled.
 
 Use synthetic note text in [GitHub Issues](https://github.com/LoganJuhl/copy-all-note/issues). For vulnerability reports, see [SECURITY.md](SECURITY.md).
 

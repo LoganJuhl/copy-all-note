@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- When two copies overlap, a delayed clipboard failure from the earlier copy can no longer overwrite the later note. Disabling the plugin also stops pending retries and notices.
+- The clipboard fallback restores focus and the direction of the selected text after copying.
+- If the open note cannot supply its live Markdown, the notice identifies the content error.
+
 ## 0.1.1 — 2026-10-02
 
 First public release. 0.1.0 stayed an unpublished draft.

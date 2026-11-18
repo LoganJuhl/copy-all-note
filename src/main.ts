@@ -38,6 +38,14 @@ const ACTION_CLASS = "copy-all-note-action";
 const ACTION_SELECTOR = `.view-actions > .${ACTION_CLASS}`;
 const ACTION_TOOLTIP = "Copy entire note";
 
+function removeOrphanHeaderActions(view: MarkdownView, keep?: HTMLElement): void {
+  view.containerEl.querySelectorAll<HTMLElement>(ACTION_SELECTOR).forEach((action) => {
+    if (action !== keep && !view.contentEl.contains(action)) {
+      action.remove();
+    }
+  });
+}
+
 function restoreFocus(activeElement: HTMLElement | null): void {
   if (activeElement) {
     try {
@@ -118,7 +126,6 @@ async function writeClipboard(
   ownerDocument: Document,
   isCurrent: () => boolean,
 ): Promise<void> {
-  let clipboardError: unknown;
   const viewNavigator = ownerDocument.defaultView?.navigator;
 
   try {
@@ -126,24 +133,13 @@ async function writeClipboard(
       await viewNavigator.clipboard.writeText(markdown);
       return;
     }
-  } catch (error) {
-    clipboardError = error;
+  } catch {
+    // A current copy can still try the same-window fallback.
   }
 
   // WebKit rejects an outstanding write when a newer copy starts.
-  if (!isCurrent()) return;
-
-  try {
+  if (isCurrent()) {
     copyWithTextarea(markdown, ownerDocument);
-  } catch (fallbackError) {
-    if (clipboardError) {
-      console.error(
-        "Copy All Note: navigator.clipboard.writeText failed before the fallback.",
-        clipboardError,
-      );
-    }
-
-    throw fallbackError;
   }
 }
 
@@ -158,6 +154,7 @@ export default class CopyAllNotePlugin extends Plugin {
 
   async onload(): Promise<void> {
     await this.loadSettings();
+    if (this.unloading) return;
 
     // Deliberately use checkCallback, not editorCheckCallback: Reading view
     // has no editor, but the command must work there too.
@@ -309,13 +306,7 @@ export default class CopyAllNotePlugin extends Plugin {
       trackedAction?.isConnected &&
       view.containerEl.contains(trackedAction)
     ) {
-      view.containerEl
-        .querySelectorAll<HTMLElement>(ACTION_SELECTOR)
-        .forEach((action) => {
-          if (action !== trackedAction) {
-            action.remove();
-          }
-        });
+      removeOrphanHeaderActions(view, trackedAction);
       placeHeaderActionFirst(trackedAction);
       return;
     }
@@ -325,9 +316,7 @@ export default class CopyAllNotePlugin extends Plugin {
       this.headerActions.delete(view);
     }
 
-    view.containerEl
-      .querySelectorAll<HTMLElement>(ACTION_SELECTOR)
-      .forEach((action) => action.remove());
+    removeOrphanHeaderActions(view);
 
     try {
       const action = view.addAction(
@@ -341,11 +330,8 @@ export default class CopyAllNotePlugin extends Plugin {
       action.addClass(ACTION_CLASS);
       placeHeaderActionFirst(action);
       this.headerActions.set(view, action);
-    } catch (error) {
-      console.error(
-        "Copy All Note: could not attach the Markdown view header action.",
-        error,
-      );
+    } catch {
+      console.error("Copy All Note: could not attach the Markdown view header action.");
     }
   }
 
@@ -357,9 +343,7 @@ export default class CopyAllNotePlugin extends Plugin {
       this.headerActions.delete(view);
     }
 
-    view.containerEl
-      .querySelectorAll<HTMLElement>(ACTION_SELECTOR)
-      .forEach((orphan) => orphan.remove());
+    removeOrphanHeaderActions(view);
   }
 
   private removeAllHeaderActions(): void {
@@ -367,9 +351,7 @@ export default class CopyAllNotePlugin extends Plugin {
 
     this.app.workspace.iterateAllLeaves((leaf) => {
       if (leaf.view instanceof MarkdownView) {
-        leaf.view.containerEl
-          .querySelectorAll<HTMLElement>(ACTION_SELECTOR)
-          .forEach((action) => action.remove());
+        removeOrphanHeaderActions(leaf.view);
       }
     });
   }
@@ -415,11 +397,8 @@ export default class CopyAllNotePlugin extends Plugin {
       let markdown: unknown;
       try {
         markdown = view.getViewData();
-      } catch (error) {
-        console.error(
-          "Copy All Note: current view data was unavailable.",
-          error,
-        );
+      } catch {
+        console.error("Copy All Note: current view data was unavailable.");
       }
 
       if (typeof markdown !== "string") {
@@ -436,9 +415,9 @@ export default class CopyAllNotePlugin extends Plugin {
       if (isCurrent() && this.settings.showNotice) {
         new Notice("Copied note", 2000);
       }
-    } catch (error) {
+    } catch {
       if (!isCurrent()) return;
-      console.error("Copy All Note: failed to copy the note.", error);
+      console.error("Copy All Note: failed to copy the note.");
       new Notice(
         "Could not copy note. Try again or check clipboard access.",
         5000,

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Frontmatter exclusion respects CR-only files and Unicode separators inside YAML text, so later properties stay out of the copied body.
+- Refreshing the header preserves rendered note HTML that uses the same CSS classes as the copy action.
+- Error logs identify which operation failed and omit details supplied by the note view or clipboard.
+- Disabling the plugin during startup stops it from registering controls and workspace listeners after the settings read finishes.
 - Starting a new copy suppresses the earlier copy's pending fallback retry and notice, including across pop-out windows. Disabling the plugin also suppresses pending retries and notices.
 - The clipboard fallback restores focus and the direction of the selected text after copying.
 - If the open note cannot supply its live Markdown, the notice identifies the content error.

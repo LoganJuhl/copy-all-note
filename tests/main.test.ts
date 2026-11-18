@@ -98,10 +98,12 @@ function createView(
   const actions = document.createElement("div");
   actions.className = "view-actions";
   containerEl.appendChild(actions);
+  const content = containerEl.appendChild(document.createElement("div"));
   document.body.appendChild(containerEl);
 
   const view = Object.create(MarkdownView.prototype) as TestView;
   view.containerEl = containerEl;
+  view.contentEl = content;
   view.file = { basename, path: `${basename}.md` } as TFile;
   view.getViewData = () => markdown;
   view.addAction = (icon, title, callback) => {
@@ -326,6 +328,64 @@ describe("copy behavior", () => {
     await vi.waitFor(() => {
       expect(writeText).toHaveBeenCalledWith("Reading view text");
     });
+  });
+
+  it("keeps an inactive note private when the active pane has no Markdown file", async () => {
+    const dom = createDom();
+    const writeText = vi.fn();
+    setClipboard(dom, writeText);
+    const harness = createApp();
+    const inactive = createView(dom, "Inactive note");
+    const fileless = createView(dom, "");
+    fileless.view.file = null;
+    harness.leaves.push(inactive.view, fileless.view);
+    const readInactive = vi.spyOn(inactive.view, "getViewData");
+    const active = vi.spyOn(harness.app.workspace, "getActiveViewOfType");
+    const plugin = createPlugin(harness.app);
+    const commands = vi.spyOn(plugin, "addCommand");
+    await plugin.onload();
+    const check = commands.mock.calls[0]?.[0].checkCallback;
+    if (!check) throw new Error("Missing copy command.");
+
+    for (const view of [null, fileless.view]) {
+      active.mockReturnValue(view);
+      expect(check(true)).toBe(false);
+      expect(check(false)).toBe(false);
+    }
+    expect(readInactive).not.toHaveBeenCalled();
+    expect(writeText).not.toHaveBeenCalled();
+    expect(harness.read).not.toHaveBeenCalled();
+    expect(harness.cachedRead).not.toHaveBeenCalled();
+  });
+
+  it("keeps note details supplied in host errors out of notices and the console", async () => {
+    const dom = createDom();
+    const harness = createApp();
+    const plugin = createPlugin(harness.app);
+    const marker = "SYNTHETIC-PRIVATE-NOTE-DETAIL";
+    const failure = new Error(marker);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { view } = createView(dom, marker);
+    harness.leaves.push(view);
+    vi.spyOn(view, "addAction").mockImplementation(() => { throw failure; });
+    plugin.refreshHeaderActions();
+
+    vi.spyOn(view, "getViewData").mockImplementationOnce(() => { throw failure; });
+    await copyFromView(plugin, view);
+    const writeText = vi.fn().mockRejectedValue(failure);
+    setClipboard(dom, writeText);
+    const fallback = vi.fn(() => { throw failure; });
+    Object.defineProperty(dom.window.document, "execCommand", { value: fallback });
+    await copyFromView(plugin, view);
+
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(marker);
+    expect(fallback).toHaveBeenCalledExactlyOnceWith("copy");
+    expect(notices).toHaveLength(2);
+    expect(notices.map((notice) => notice.message).join("\n")).not.toContain(marker);
+    expect(log).toHaveBeenCalled();
+    for (const args of log.mock.calls) {
+      expect(args.every((arg) => typeof arg === "string" && !arg.includes(marker))).toBe(true);
+    }
   });
 
   it("fails closed when the live view buffer is unavailable", async () => {
@@ -677,6 +737,56 @@ describe("settings persistence", () => {
 });
 
 describe("header action lifecycle", () => {
+  it("does not register controls or listeners when disabled during the settings read", async () => {
+    const harness = createApp();
+    const plugin = createPlugin(harness.app);
+    let finishRead!: () => void;
+    const read = new Promise<null>((resolve) => { finishRead = () => resolve(null); });
+    vi.spyOn(plugin, "loadData").mockReturnValue(read);
+    const command = vi.spyOn(plugin, "addCommand");
+    const tab = vi.spyOn(plugin, "addSettingTab");
+    const events = vi.spyOn(harness.app.workspace, "on");
+    const layout = vi.spyOn(harness.app.workspace, "onLayoutReady");
+
+    const loading = plugin.onload();
+    plugin.onunload();
+    finishRead();
+    await loading;
+
+    expect(command).not.toHaveBeenCalled();
+    expect(tab).not.toHaveBeenCalled();
+    expect(events).not.toHaveBeenCalled();
+    expect(layout).not.toHaveBeenCalled();
+  });
+
+  it("preserves matching HTML in the note body throughout the header lifecycle", () => {
+    const dom = createDom();
+    const harness = createApp();
+    const plugin = createPlugin(harness.app);
+    const { view, actions } = createView(dom, "Visible note");
+    harness.leaves.push(view);
+    const row = view.contentEl.appendChild(dom.window.document.createElement("div"));
+    row.className = "view-actions";
+    const noteText = row.appendChild(dom.window.document.createElement("span"));
+    noteText.className = "copy-all-note-action";
+    noteText.textContent = "Visible note";
+
+    plugin.refreshHeaderActions();
+    plugin.refreshHeaderActions();
+    plugin.refreshHeaderActions(true);
+    expect(actions.querySelectorAll(".copy-all-note-action")).toHaveLength(1);
+    plugin.settings.showHeaderButton = false;
+    plugin.refreshHeaderActions();
+    expect(actions.children).toHaveLength(0);
+    plugin.settings.showHeaderButton = true;
+    view.file = null;
+    plugin.refreshHeaderActions();
+    plugin.onunload();
+
+    expect(row.firstElementChild).toBe(noteText);
+    expect(noteText.isConnected).toBe(true);
+  });
+
   it("prepends the action so Cupertino's native tail remains stable", () => {
     const dom = createDom();
     const harness = createApp();

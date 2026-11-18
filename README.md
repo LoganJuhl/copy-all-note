@@ -28,7 +28,7 @@ The release ZIP contains a `copy-all-note/` folder with those three files. Place
 
 In split panes and pop-out windows, the header button copies the note in that view; the command copies the active note.
 
-The output is Markdown. Obsidian may already have converted CRLF line endings to LF or removed a leading byte-order mark (BOM) before supplying the buffer. The plugin does not read the file from disk.
+The output is Markdown. Obsidian may already have converted CRLF line endings to LF or removed a leading byte-order mark (BOM) before supplying the buffer. The plugin does not read the file from disk. The textarea fallback normalizes CRLF and lone CR line endings to LF before copying.
 
 An empty output copies only if the Clipboard API accepts it. If that API is missing or rejects the request, the plugin reports a failure and leaves the clipboard unchanged. If Obsidian asks for clipboard access when you copy, that prompt is expected.
 
@@ -50,7 +50,7 @@ If a theme hides the view header, use the command, a hotkey, or the mobile toolb
 
 ## Privacy
 
-No network requests, telemetry, or clipboard reads. Note text is read only when you copy and is not saved by the plugin. Saved settings contain only booleans and an icon name; the plugin does not modify note files.
+No network requests, telemetry, or clipboard reads. Note text is read only when you copy and is not saved by the plugin. The plugin logs the failed operation and omits exception details from the note view or clipboard. Its settings file contains only booleans and an icon name. It never modifies note files.
 
 If the Clipboard API is missing or rejects the request, nonempty text is copied through a temporary off-screen textarea in that window, then removed. Focus and selection are restored where possible. A pending fallback runs only while its copy is the most recent one and the plugin is enabled. A clipboard write already submitted to the operating system can still complete.
 

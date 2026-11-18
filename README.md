@@ -7,7 +7,7 @@ A header button that copies the open note as Markdown, ready to paste into a cha
 
 ## Install
 
-Requires Obsidian **1.13.7** or newer on desktop or mobile. Tested on macOS and a physical iPhone. Installing the plugin does not require Node.js.
+Requires Obsidian **1.13.7** or newer on desktop or mobile. Release 0.1.1 was tested on macOS and a physical iPhone. Installing the plugin does not require Node.js.
 
 In Obsidian, open **Settings → Community plugins** and turn on community plugins if needed. Select **Browse**, search **Copy All Note**, then **Install** and **Enable**. You can also select **Add to Obsidian** from the [Community listing](https://community.obsidian.md/plugins/copy-all-note).
 

@@ -426,8 +426,6 @@ export default class CopyAllNotePlugin extends Plugin {
   }
 }
 
-// Imperative settings keep the declared Obsidian 1.5 compatibility without
-// shipping a second, declarative implementation for Obsidian 1.13 and later.
 class CopyAllNoteSettingTab extends PluginSettingTab {
   private readonly persistIconSettings: Debouncer<[], Promise<void>>;
 

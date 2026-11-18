@@ -216,6 +216,47 @@ describe("copy behavior", () => {
     expect(notices).toEqual([{ message: "Copied note", timeout: 2000 }]);
   });
 
+  it("retries only the pop-out copy when overlapping writes in two windows reject", async () => {
+    const mainDom = createDom();
+    const popoutDom = createDom();
+    const harness = createApp();
+    const plugin = createPlugin(harness.app);
+    const main = createView(mainDom, "Main note");
+    const popout = createView(popoutDom, "Pop-out note");
+    harness.leaves.push(main.view, popout.view);
+    plugin.refreshHeaderActions();
+
+    let rejectMain!: (reason: Error) => void;
+    const mainWrite = vi.fn(() => new Promise<void>((_, reject) => { rejectMain = reject; }));
+    const popoutWrite = vi.fn().mockRejectedValue(new Error("Pop-out clipboard unavailable"));
+    setClipboard(mainDom, mainWrite);
+    setClipboard(popoutDom, popoutWrite);
+
+    const clipboardWrites: string[] = [];
+    const execCommand = vi.fn(function (this: Document, command: string) {
+      const buffer = this.querySelector("textarea");
+      if (command !== "copy" || !buffer) return false;
+      clipboardWrites.push(buffer.value);
+      return true;
+    });
+    for (const dom of [mainDom, popoutDom]) {
+      Object.defineProperty(dom.window.document, "execCommand", { value: execCommand });
+    }
+
+    const pending = copyFromView(plugin, main.view);
+    popout.actions.querySelector("button")!.click();
+    await vi.waitFor(() => expect(clipboardWrites).toEqual(["Pop-out note"]));
+    rejectMain(new Error("Main clipboard unavailable"));
+    await pending;
+
+    expect(mainWrite).toHaveBeenCalledExactlyOnceWith("Main note");
+    expect(popoutWrite).toHaveBeenCalledExactlyOnceWith("Pop-out note");
+    expect(clipboardWrites).toEqual(["Pop-out note"]);
+    expect(execCommand.mock.contexts[0]).toBe(popoutDom.window.document);
+    expect(execCommand).toHaveBeenCalledExactlyOnceWith("copy");
+    expect(notices).toEqual([{ message: "Copied note", timeout: 2000 }]);
+  });
+
   it.each(["resolve", "reject"])("ignores a pending clipboard %s after unload", async (outcome) => {
     const dom = createDom();
     const plugin = createPlugin(createApp().app);
